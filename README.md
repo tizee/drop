@@ -1,16 +1,30 @@
 # drop
 
-A lightweight LAN inbox for getting files and text onto your dev machine from any device on the same network. Built with [Bun](https://bun.sh/).
+Send text, images, and files from any device straight onto your dev machine. Built with [Bun](https://bun.sh/).
 
-Run it on your laptop, open the LAN URL on your phone, and drop files, text snippets, or clipboard content straight into an inbox directory on disk. Each item gets a filesystem path you can copy and feed to coding agents or use however you like.
+`drop` is a personal inbox endpoint for your dev machine. Run it on your workstation, open the URL on your phone or any other device, and drop content into a filesystem directory that your coding agents and scripts can consume directly.
+
+**Tailscale gives you secure reachability to your dev machine. `drop` turns that reachability into a practical inbox for text, images, and files.**
+
+Works on plain LAN out of the box. Pair it with [Tailscale](https://tailscale.com/) to reach your dev machine from anywhere on your tailnet -- no port forwarding, no certs, no auth layer to build.
 
 ## What it does
 
-- Serves a mobile-friendly web UI on `0.0.0.0:3939` (configurable)
-- Accepts file uploads, text snippets, and clipboard content (text or images) via a REST API
+- Mobile-friendly web UI on `0.0.0.0:3939` (configurable)
+- Accepts file uploads, text snippets, and clipboard content (text or images) via REST API
 - Saves everything to `~/.drop/inbox/` with timestamped filenames
 - Auto-cleans items older than 24 hours
-- Shows the full filesystem path for each item so you can copy it to agents or scripts
+- Shows full filesystem paths so you can feed them to agents or scripts
+
+## Why not Taildrop?
+
+[Taildrop](https://tailscale.com/kb/1106/taildrop/) solves **file transfer between devices**. `drop` solves **content intake into a dev workflow**:
+
+- Taildrop transfers files. `drop` also handles text snippets and clipboard content (paste an image, paste a code block).
+- Taildrop delivers files to a download folder. `drop` delivers to a structured inbox with timestamped filenames, filesystem paths you can copy, and auto-cleanup.
+- Taildrop requires the Tailscale client on both ends. `drop` only needs a browser on the sending device.
+
+They're complementary: Tailscale handles secure connectivity, `drop` handles the last mile of getting arbitrary content into your working directory.
 
 ## Quick start
 
