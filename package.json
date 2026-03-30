@@ -3,9 +3,13 @@
   "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "drop": "src/cli.ts"
+  },
   "scripts": {
     "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "drop": "bun run src/cli.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
