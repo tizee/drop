@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>drop</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="drop">
+<meta name="theme-color" content="#0a0a0a">
 <style>
   :root {
     --bg: #0a0a0a;
@@ -252,11 +257,54 @@
     border-radius: 4px;
     margin-bottom: 8px;
   }
+
+  /* --- Connection Status --- */
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background-color 0.3s;
+  }
+  .status-dot.connected { background: var(--success); }
+  .status-dot.disconnected { background: var(--danger); animation: pulse-dot 1.5s infinite; }
+  .status-dot.checking { background: var(--text-dim); }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 6px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    transition: border-color 0.3s;
+  }
+  .status-bar.disconnected {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .status-bar .status-text { flex: 1; }
+  .status-bar .status-latency { font-family: "SF Mono", "Menlo", monospace; font-size: 10px; }
 </style>
 </head>
 <body>
 
 <h1>drop <span>LAN inbox</span></h1>
+
+<div class="status-bar" id="status-bar">
+  <span class="status-dot checking" id="status-dot"></span>
+  <span class="status-text" id="status-text">Checking connection...</span>
+  <span class="status-latency" id="status-latency"></span>
+</div>
 
 <div class="tabs">
   <button class="tab active" data-tab="file">File</button>
@@ -298,6 +346,30 @@
 
 <div class="toast" id="toast"></div>
 
+<script>
+// Generate apple-touch-icon from SVG at runtime
+(function generateAppleTouchIcon() {
+  const img = new Image();
+  img.onload = function() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 180;
+    canvas.height = 180;
+    const ctx = canvas.getContext("2d");
+    // Fill with app background color
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, 0, 180, 180);
+    // Center the icon with padding
+    const pad = 30;
+    const s = 180 - pad * 2;
+    ctx.drawImage(img, pad, pad, s, s);
+    const link = document.createElement("link");
+    link.rel = "apple-touch-icon";
+    link.href = canvas.toDataURL("image/png");
+    document.head.appendChild(link);
+  };
+  img.src = "/favicon.svg";
+})();
+</script>
 <script>
 const $ = (s) => document.querySelector(s);
 const API = "";
@@ -564,6 +636,71 @@ $("#clear-all").addEventListener("click", async () => {
     toast(`Failed: ${e.message}`);
   }
 });
+
+// --- Connection status via Web Worker ---
+const workerCode = `
+  let interval = null;
+  let baseUrl = "";
+
+  self.onmessage = function(e) {
+    if (e.data.type === "init") {
+      baseUrl = e.data.baseUrl;
+      checkHealth();
+      interval = setInterval(checkHealth, 4000);
+    }
+    if (e.data.type === "check") {
+      checkHealth();
+    }
+  };
+
+  async function checkHealth() {
+    const start = Date.now();
+    try {
+      const res = await fetch(baseUrl + "/api/health", { signal: AbortSignal.timeout(5000) });
+      const latency = Date.now() - start;
+      if (res.ok) {
+        self.postMessage({ status: "connected", latency });
+      } else {
+        self.postMessage({ status: "disconnected", latency, reason: "HTTP " + res.status });
+      }
+    } catch (e) {
+      self.postMessage({ status: "disconnected", latency: Date.now() - start, reason: e.message || "Network error" });
+    }
+  }
+`;
+
+const healthWorker = new Worker(
+  URL.createObjectURL(new Blob([workerCode], { type: "application/javascript" }))
+);
+
+healthWorker.postMessage({ type: "init", baseUrl: location.origin });
+
+let wasConnected = null;
+
+healthWorker.onmessage = function(e) {
+  const { status, latency, reason } = e.data;
+  const dot = $("#status-dot");
+  const text = $("#status-text");
+  const bar = $("#status-bar");
+  const lat = $("#status-latency");
+
+  dot.className = "status-dot " + status;
+  bar.className = "status-bar" + (status === "disconnected" ? " disconnected" : "");
+
+  if (status === "connected") {
+    text.textContent = "Connected";
+    lat.textContent = latency + "ms";
+    // Auto-refresh items when reconnecting
+    if (wasConnected === false) {
+      refresh();
+      toast("Reconnected to server");
+    }
+  } else {
+    text.textContent = "Disconnected" + (reason ? " - " + reason : "");
+    lat.textContent = "";
+  }
+  wasConnected = status === "connected";
+};
 
 // Initial load + auto-refresh every 5s
 refresh();

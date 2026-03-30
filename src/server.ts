@@ -113,6 +113,19 @@ export function createServer({ port, store }: ServerOptions) {
         return err("Not found", 404);
       }
 
+      // Health check for connection status
+      if (method === "GET" && path === "/api/health") {
+        return json({ ok: true, ts: Date.now() });
+      }
+
+      // Favicon
+      if (method === "GET" && path === "/favicon.svg") {
+        const svg = Bun.file(join(import.meta.dir, "favicon.svg"));
+        return new Response(svg, {
+          headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" },
+        });
+      }
+
       // --- Frontend ---
       if (method === "GET" && (path === "/" || path === "/index.html")) {
         const html = Bun.file(join(import.meta.dir, "frontend.html"));
