@@ -38,7 +38,7 @@ function cleanStalePid(): void {
   }
 }
 
-function start(port?: number, dir?: string): void {
+async function start(port?: number, dir?: string): Promise<void> {
   ensureDropDir();
   cleanStalePid();
 
@@ -68,10 +68,28 @@ function start(port?: number, dir?: string): void {
   child.unref();
   writeFileSync(PID_FILE, String(child.pid));
 
+  // Wait for server to write actual port to log, then display it
+  const actualPort = await waitForActualPort(LOG_FILE, 3000);
+
   console.log(`drop started (pid ${child.pid})`);
-  console.log(`  Port: ${port ?? process.env.DROP_PORT ?? 3939}`);
+  console.log(`  Port: ${actualPort ?? port ?? process.env.DROP_PORT ?? 3939}`);
   console.log(`  Dir:  ${dir ?? process.env.DROP_DIR ?? join(process.env.HOME!, ".drop", "inbox")}`);
   console.log(`  Log:  ${LOG_FILE}`);
+}
+
+async function waitForActualPort(logFile: string, timeoutMs: number): Promise<number | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const content = readFileSync(logFile, "utf-8");
+      const match = content.match(/Local:\s+http:\/\/localhost:(\d+)/);
+      if (match) return parseInt(match[1], 10);
+    } catch {
+      // log file not ready yet
+    }
+    await Bun.sleep(100);
+  }
+  return null;
 }
 
 function stop(): void {
@@ -163,7 +181,7 @@ switch (command) {
       process.exit(1);
     }
     const dir = getFlag("--dir");
-    start(port, dir);
+    await start(port, dir);
     break;
   }
   case "stop":
