@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, existsSync, readFileSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -110,6 +110,23 @@ describe("cli", () => {
     const r2 = run(["start", "--port", "0", "--dir", inboxDir], { DROP_DIR: tmpDir });
     expect(r2.exitCode).toBe(1);
     expect(r2.stdout).toContain("already running");
+  });
+
+  it("start expands a quoted tilde inbox path", () => {
+    const homeDir = join(tmpDir, "home");
+    mkdirSync(homeDir);
+
+    const startResult = run(["start", "--port", "0", "--dir", "~/inbox"], {
+      DROP_DIR: tmpDir,
+      HOME: homeDir,
+    });
+
+    expect(startResult.exitCode).toBe(0);
+    expect(startResult.stdout).toContain(join(homeDir, "inbox"));
+    expect(existsSync(join(homeDir, "inbox"))).toBe(true);
+
+    const stopResult = run(["stop"], { DROP_DIR: tmpDir, HOME: homeDir });
+    expect(stopResult.exitCode).toBe(0);
   });
 
   it("log reports no log file when none exists", () => {

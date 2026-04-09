@@ -222,6 +222,10 @@
   .item-actions .btn-sm { flex: 1; }
   .btn-copy { background: #1a3a5c; color: var(--accent); }
   .btn-copy:hover { background: #244a6c; }
+  .btn-text { background: #1a4a2a; color: var(--success); }
+  .btn-text:hover { background: #244a34; }
+  .btn-dl { background: #1a3a1a; color: var(--success); }
+  .btn-dl:hover { background: #244a24; }
   .btn-del { background: #3a1a1a; color: var(--danger); }
   .btn-del:hover { background: #4a2a2a; }
 
@@ -561,6 +565,8 @@ function renderItems(items) {
         ${preview}
         <div class="item-path">${escapeHtml(item.path)}</div>
         <div class="item-actions">
+          ${item.type === "text" || (item.type === "clipboard" && item.filename.endsWith(".txt")) ? `<button class="btn btn-sm btn-text" onclick="copyContent('${escapeAttr(item.id)}')">Copy Text</button>` : ""}
+          ${item.type === "file" || (item.type === "clipboard" && !item.filename.endsWith(".txt")) ? `<a class="btn btn-sm btn-dl" href="${API}/raw/${encodeURIComponent(item.id)}" download="${escapeAttr(item.filename)}">Download</a>` : ""}
           <button class="btn btn-sm btn-copy" onclick="copyPath('${escapeAttr(item.path)}')">Copy Path</button>
           <button class="btn btn-sm btn-del" onclick="deleteItem('${escapeAttr(item.id)}')">Delete</button>
         </div>
@@ -598,21 +604,35 @@ async function refresh() {
   }
 }
 
-window.copyPath = async function(path) {
+async function copyToClipboard(text, label) {
   try {
-    await navigator.clipboard.writeText(path);
-    toast("Path copied!");
+    await navigator.clipboard.writeText(text);
+    toast(label + " copied!");
   } catch {
-    // Fallback
     const ta = document.createElement("textarea");
-    ta.value = path;
+    ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
     ta.select();
     document.execCommand("copy");
     document.body.removeChild(ta);
-    toast("Path copied!");
+    toast(label + " copied!");
+  }
+}
+
+window.copyPath = async function(path) {
+  await copyToClipboard(path, "Path");
+};
+
+window.copyContent = async function(id) {
+  try {
+    const res = await fetch(`${API}/raw/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error("Failed to fetch");
+    const text = await res.text();
+    await copyToClipboard(text, "Text");
+  } catch (e) {
+    toast("Failed: " + e.message);
   }
 };
 

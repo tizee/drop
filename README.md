@@ -62,6 +62,14 @@ bun run drop log                    # last 20 lines
 bun run drop log --lines 50         # last 50 lines
 ```
 
+Path handling notes:
+
+- `--dir` and `DROP_DIR` accept either an absolute path or `~/...`
+- Literal `~` values are expanded by `drop` before use
+- `HOME` must be set to an absolute path when `drop` needs it
+- Invalid home-style paths such as `~otheruser/inbox` are rejected
+- Broken path config fails fast instead of silently creating relative directories
+
 To install `drop` as a global command:
 
 ```bash
@@ -103,7 +111,12 @@ bun dev
 | Env var    | Default            | Description                        |
 |------------|--------------------|------------------------------------|
 | `DROP_PORT`| `3939`             | Server port (auto-increments if in use) |
-| `DROP_DIR` | `~/.drop/inbox`    | Inbox directory on disk            |
+| `DROP_DIR` | `~/.drop/inbox`    | Inbox directory on disk; accepts an absolute path or `~/...` |
+
+Notes:
+
+- If `DROP_DIR` is unset, `drop` uses `$HOME/.drop/inbox`
+- `HOME` must be an absolute path; invalid values are rejected at startup
 
 ## API
 

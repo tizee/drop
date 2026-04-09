@@ -65,6 +65,46 @@ describe("ensureInbox", () => {
     store.ensureInbox();
     expect(existsSync(tempDir)).toBe(true);
   });
+
+  it("expands ~/ paths against HOME", () => {
+    const originalHome = process.env.HOME;
+    const originalDropDir = process.env.DROP_DIR;
+
+    try {
+      process.env.HOME = tempDir;
+      delete process.env.DROP_DIR;
+
+      const s = new Store("~/inbox");
+      expect(s.inboxDir).toBe(join(tempDir, "inbox"));
+
+      s.ensureInbox();
+      expect(existsSync(join(tempDir, "inbox"))).toBe(true);
+    } finally {
+      if (originalHome === undefined) delete process.env.HOME;
+      else process.env.HOME = originalHome;
+
+      if (originalDropDir === undefined) delete process.env.DROP_DIR;
+      else process.env.DROP_DIR = originalDropDir;
+    }
+  });
+
+  it("rejects invalid HOME values that are not absolute paths", () => {
+    const originalHome = process.env.HOME;
+    const originalDropDir = process.env.DROP_DIR;
+
+    try {
+      process.env.HOME = "~";
+      delete process.env.DROP_DIR;
+
+      expect(() => new Store()).toThrow("HOME environment variable must be an absolute path");
+    } finally {
+      if (originalHome === undefined) delete process.env.HOME;
+      else process.env.HOME = originalHome;
+
+      if (originalDropDir === undefined) delete process.env.DROP_DIR;
+      else process.env.DROP_DIR = originalDropDir;
+    }
+  });
 });
 
 // --- saveFile ---

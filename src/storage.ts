@@ -1,15 +1,6 @@
 import { join, basename } from "path";
 import { mkdirSync, existsSync, readdirSync, unlinkSync, statSync } from "fs";
-
-function getHome(): string {
-  const home = process.env.HOME ?? Bun.env.HOME;
-  if (!home) {
-    throw new Error("HOME environment variable is not set. Cannot determine inbox directory. Set DROP_DIR explicitly.");
-  }
-  return home;
-}
-
-const DEFAULT_INBOX_DIR = process.env.DROP_DIR ?? join(getHome(), ".drop", "inbox");
+import { resolveInboxDir } from "./paths";
 
 const MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -35,7 +26,7 @@ export class Store {
   readonly inboxDir: string;
 
   constructor(inboxDir?: string) {
-    this.inboxDir = inboxDir ?? DEFAULT_INBOX_DIR;
+    this.inboxDir = resolveInboxDir(inboxDir);
   }
 
   ensureInbox(): void {

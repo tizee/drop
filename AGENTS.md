@@ -4,7 +4,7 @@ This file provides guidance to AI coding agents when working with code in this r
 
 ## Project Overview
 
-drop is a LAN inbox server built with Bun. It exposes a mobile-friendly web UI and REST API that lets any device on the local network drop files, text, and clipboard content into a filesystem inbox (`~/.drop/inbox/` by default). Designed for feeding content to coding agents via filesystem paths.
+drop is a LAN inbox server built with Bun. It exposes a mobile-friendly web UI and REST API that lets any device on the local network drop files, text, and clipboard content into a filesystem inbox (`~/.drop/inbox/` by default, resolved from `$HOME`). Designed for feeding content to coding agents via filesystem paths.
 
 ## Commands
 
@@ -42,14 +42,14 @@ All routes are defined in `server.ts` as sequential `if` checks on method + path
 
 ### Store API
 
-`Store` class in `storage.ts` is the sole data layer. Constructor takes optional `inboxDir` (defaults to `$HOME/.drop/inbox` or `$DROP_DIR`). Methods: `saveFile`, `saveText`, `listItems`, `deleteItem`, `clearAll`, `autoCleanup`. Each returns a `DropItem` with `id`, `filename`, `path`, `type`, `size`, `createdAt`.
+`Store` class in `storage.ts` is the sole data layer. Constructor takes optional `inboxDir` and resolves it as an absolute path. `inboxDir` and `DROP_DIR` accept either an absolute path or `~/...`; otherwise the default is `$HOME/.drop/inbox`. Methods: `saveFile`, `saveText`, `listItems`, `deleteItem`, `clearAll`, `autoCleanup`. Each returns a `DropItem` with `id`, `filename`, `path`, `type`, `size`, `createdAt`.
 
 ## Configuration
 
 Environment variables (no config files):
 - `DROP_PORT` -- server port (default `3939`, auto-increments on conflict)
-- `DROP_DIR` -- inbox directory (default `~/.drop/inbox`)
-- `HOME` -- required fallback if `DROP_DIR` is unset; missing HOME throws at construction time
+- `DROP_DIR` -- inbox directory (default `~/.drop/inbox`; accepts an absolute path or `~/...`)
+- `HOME` -- required fallback if `DROP_DIR` is unset; must be an absolute path or startup throws
 
 ## Testing
 
