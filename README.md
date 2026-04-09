@@ -1,8 +1,10 @@
 # drop
 
-Send text, images, and files from any device straight onto your dev machine. Built with [Bun](https://bun.sh/).
+Share text, images, and files between your devices and your dev machine. Built with [Bun](https://bun.sh/).
 
-`drop` is a personal inbox endpoint for your dev machine. Run it on your workstation, open the URL on your phone or any other device, and drop content into a filesystem directory that your coding agents and scripts can consume directly.
+`drop` is a bidirectional content bridge for your dev machine. Run it on your workstation, open the URL on your phone, and share content in both directions:
+- **Phone to computer**: drop files, text, and clipboard content into a filesystem inbox for agents and scripts.
+- **Computer to phone**: upload files and text via CLI, then download or copy them on your phone.
 
 **Tailscale gives you secure reachability to your dev machine. `drop` turns that reachability into a practical inbox for text, images, and files.**
 
@@ -12,6 +14,8 @@ Works on plain LAN out of the box. Pair it with [Tailscale](https://tailscale.co
 
 - Mobile-friendly web UI on `0.0.0.0:3939` (configurable)
 - Accepts file uploads, text snippets, and clipboard content (text or images) via REST API
+- CLI commands to upload files (`drop cp`) and send text (`drop send`) from your workstation
+- Frontend supports downloading files and copying text content with one tap
 - Saves everything to `~/.drop/inbox/` with timestamped filenames
 - Auto-cleans items older than 24 hours
 - Shows full filesystem paths so you can feed them to agents or scripts
@@ -45,9 +49,11 @@ Output:
   Open the LAN URL on your phone to start dropping files.
 ```
 
-## CLI (service management)
+## CLI
 
-The `drop` CLI manages the server as a background process with a PID file at `~/.drop/drop.pid`.
+The `drop` CLI manages the server as a background process (PID file at `~/.drop/drop.pid`) and provides commands to share content from your workstation.
+
+### Service management
 
 ```bash
 # Start / stop / check
@@ -61,6 +67,32 @@ bun run drop status                 # check if running
 bun run drop log                    # last 20 lines
 bun run drop log --lines 50         # last 50 lines
 ```
+
+### Share content from your workstation
+
+Upload files or send text to the inbox, then download or copy them on your phone via the web UI.
+
+```bash
+# Upload files (downloadable on phone)
+drop cp photo.jpg notes.pdf
+drop cp ~/Desktop/config.yaml
+
+# Send text (copyable on phone)
+drop send "The WiFi password is hunter2"
+echo "export API_KEY=..." | drop send    # pipe from stdin
+pbpaste | drop send                       # send clipboard contents
+```
+
+The `cp` and `send` commands require a running server (they act as HTTP clients). The server port is auto-detected from the server log.
+
+| Command | Description |
+|---------|-------------|
+| `drop start` | Start server in background, write PID to `~/.drop/drop.pid` |
+| `drop stop` | Stop the background server |
+| `drop status` | Check if the server is running |
+| `drop log` | Show recent server log output (`~/.drop/drop.log`) |
+| `drop cp <files...>` | Upload files to inbox (downloadable from phone) |
+| `drop send [text]` | Send text to inbox; reads stdin if no argument (copyable from phone) |
 
 Path handling notes:
 
@@ -84,13 +116,6 @@ To uninstall:
 ```bash
 npm unlink -g drop
 ```
-
-| Command | Description |
-|---------|-------------|
-| `drop start` | Start server in background, write PID to `~/.drop/drop.pid` |
-| `drop stop` | Stop the background server |
-| `drop status` | Check if the server is running |
-| `drop log` | Show recent server log output (`~/.drop/drop.log`) |
 
 | Flag | Applies to | Description |
 |------|-----------|-------------|
@@ -157,7 +182,7 @@ curl http://localhost:3939/api/items
 
 ```
 src/
-  cli.ts          CLI entry point -- start/stop/status/log commands
+  cli.ts          CLI entry point -- start/stop/status/log/cp/send commands
   index.ts        Server entry point -- starts server, prints URLs
   server.ts       HTTP server with REST API + static frontend
   storage.ts      Filesystem-backed store (save, list, delete, auto-cleanup)
