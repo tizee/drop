@@ -23,7 +23,9 @@ export function createServer({ port, store }: ServerOptions) {
 
   return Bun.serve({
     port,
-    hostname: "0.0.0.0",
+    // "::" binds dual-stack (IPv6 + IPv4-mapped) so both `localhost` (often ::1)
+    // and every IPv4 interface (LAN, Tailscale) are reachable.
+    hostname: "::",
 
     async fetch(req) {
       const url = new URL(req.url);

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, mkdirSync, existsSync, readFileSync, readdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -127,6 +127,44 @@ describe("cli", () => {
 
     const stopResult = run(["stop"], { DROP_DIR: tmpDir, HOME: homeDir });
     expect(stopResult.exitCode).toBe(0);
+  });
+
+  it("send delivers text to a running server and lands it in the inbox", () => {
+    // Regression: the CLI must reach the running server over a loopback
+    // address that actually connects. Bun's fetch to the literal "localhost"
+    // can fail (resolves to ::1), so the CLI targets 127.0.0.1.
+    const startResult = run(["start", "--port", "0", "--dir", inboxDir], { DROP_DIR: tmpDir });
+    expect(startResult.exitCode).toBe(0);
+
+    const sendResult = run(["send", "hello over the wire"], { DROP_DIR: tmpDir });
+    expect(sendResult.exitCode).toBe(0);
+    expect(sendResult.stdout).toContain("Sent:");
+
+    // the text should now exist as a snippet in the inbox
+    const files = readdirSync(inboxDir);
+    const snippet = files.find((f) => f.endsWith("-snippet.txt"));
+    expect(snippet).toBeDefined();
+    expect(readFileSync(join(inboxDir, snippet!), "utf-8")).toBe("hello over the wire");
+
+    run(["stop"], { DROP_DIR: tmpDir });
+  });
+
+  it("status shows connection details (URLs, inbox, log) when running", () => {
+    const startResult = run(["start", "--port", "0", "--dir", inboxDir], { DROP_DIR: tmpDir });
+    expect(startResult.exitCode).toBe(0);
+
+    const r = run(["status"], { DROP_DIR: tmpDir });
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain("running");
+    // detailed, banner-like output
+    expect(r.stdout).toContain("Local:");
+    expect(r.stdout).toContain("http://localhost:");
+    expect(r.stdout).toContain("LAN:");
+    expect(r.stdout).toContain("Inbox:");
+    expect(r.stdout).toContain(inboxDir);
+    expect(r.stdout).toContain("Log:");
+
+    run(["stop"], { DROP_DIR: tmpDir });
   });
 
   it("log reports no log file when none exists", () => {

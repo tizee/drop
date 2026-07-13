@@ -14,12 +14,26 @@ beforeEach(() => {
   tempDir = mkdtempSync(join(tmpdir(), "drop-server-test-"));
   store = new Store(tempDir);
   server = createServer({ port: 0, store }); // port 0 = random available port, no TLS for tests
-  base = `http://localhost:${server.port}`;
+  base = `http://127.0.0.1:${server.port}`;
 });
 
 afterEach(() => {
   server.stop(true);
   rmSync(tempDir, { recursive: true, force: true });
+});
+
+// --- loopback address family ---
+
+describe("loopback reachability", () => {
+  it("accepts IPv4 loopback connections", async () => {
+    const res = await fetch(`http://127.0.0.1:${server.port}/api/health`);
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts IPv6 loopback connections (so 'localhost' works when it resolves to ::1)", async () => {
+    const res = await fetch(`http://[::1]:${server.port}/api/health`);
+    expect(res.status).toBe(200);
+  });
 });
 
 // --- POST /api/upload ---

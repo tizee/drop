@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import { basename, join } from "path";
 import { existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { expandUserPath, resolveControlDir, resolveInboxDir } from "./paths";
+import { detectAddresses, formatEndpoints } from "./network";
 
 const SERVER_ENTRY = join(import.meta.dir, "index.ts");
 
@@ -132,6 +133,21 @@ function stop(): void {
   }
 }
 
+function readServerInfoFromLog(logFile: string): { port: number | null; inboxDir: string | null } {
+  if (!existsSync(logFile)) return { port: null, inboxDir: null };
+  try {
+    const content = readFileSync(logFile, "utf-8");
+    const portMatch = content.match(/Local:\s+http:\/\/localhost:(\d+)/);
+    const inboxMatch = content.match(/Inbox:\s+(.+)/);
+    return {
+      port: portMatch ? parseInt(portMatch[1], 10) : null,
+      inboxDir: inboxMatch ? inboxMatch[1].trim() : null,
+    };
+  } catch {
+    return { port: null, inboxDir: null };
+  }
+}
+
 function status(): void {
   const paths = getCliPaths();
   cleanStalePid(paths);
@@ -143,6 +159,15 @@ function status(): void {
   }
 
   console.log(`drop is running (pid ${pid})`);
+
+  const { port, inboxDir } = readServerInfoFromLog(paths.logFile);
+  if (port !== null) {
+    for (const line of formatEndpoints(port, detectAddresses())) {
+      console.log(`  ${line}`);
+    }
+  }
+  if (inboxDir) console.log(`  Inbox:     ${inboxDir}`);
+  console.log(`  Log:       ${paths.logFile}`);
 }
 
 function printLog(lines: number): void {
@@ -164,11 +189,11 @@ function getServerUrl(): string {
     try {
       const content = readFileSync(paths.logFile, "utf-8");
       const match = content.match(/Local:\s+http:\/\/localhost:(\d+)/);
-      if (match) return `http://localhost:${match[1]}`;
+      if (match) return `http://127.0.0.1:${match[1]}`;
     } catch {}
   }
   const port = process.env.DROP_PORT ?? "3939";
-  return `http://localhost:${port}`;
+  return `http://127.0.0.1:${port}`;
 }
 
 function formatSize(bytes: number): string {
